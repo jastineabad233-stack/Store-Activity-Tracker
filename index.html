@@ -25,7 +25,7 @@
         .modal-backdrop { backdrop-filter: blur(4px); }
         
         .toast { animation: slideUp 0.3s ease-out; }
-        @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1); } }
         
         .progress-bar { transition: width 0.5s ease-out; }
         
@@ -35,273 +35,379 @@
         .tab-active { border-bottom: 2px solid #3b82f6; color: #3b82f6; }
         
         .empty-state { background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); }
+        
+        .role-admin { border-left: 4px solid #dc2626; }
+        .role-supervisor { border-left: 4px solid #3b82f6; }
+        
+        .checkbox-wrapper input:checked + div { background-color: #3b82f6; border-color: #3b82f6; }
+        .checkbox-wrapper input:checked + div svg { display: block; }
+        
+        .duration-badge { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
-    <!-- Navigation -->
-    <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <i class="fas fa-store text-blue-600 text-2xl mr-3"></i>
-                    <h1 class="text-xl font-bold text-gray-900">Store Activity Manager</h1>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="fixed inset-0 bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center z-50">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 slide-in">
+            <div class="text-center mb-8">
+                <div class="bg-blue-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-store text-4xl text-blue-600"></i>
                 </div>
-                <div class="flex items-center space-x-4">
-                    <button onclick="app.exportData()" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-                        <i class="fas fa-download mr-2"></i>Export Data
-                    </button>
-                    <button onclick="app.importData()" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-                        <i class="fas fa-upload mr-2"></i>Import Data
-                    </button>
-                    <input type="file" id="importFile" class="hidden" accept=".json" onchange="app.handleImport(this)">
-                </div>
+                <h1 class="text-2xl font-bold text-gray-900">Store Activity Manager</h1>
+                <p class="text-gray-600 mt-2">Please select your role to continue</p>
+            </div>
+            
+            <div class="space-y-4">
+                <button onclick="app.login('ADMIN')" class="w-full bg-red-600 text-white py-4 rounded-xl hover:bg-red-700 transition flex items-center justify-center space-x-3 group">
+                    <i class="fas fa-shield-alt text-xl group-hover:scale-110 transition"></i>
+                    <div class="text-left">
+                        <div class="font-bold">Administrator</div>
+                        <div class="text-sm opacity-90">Full access to all features</div>
+                    </div>
+                </button>
+                
+                <button onclick="app.login('SUPERVISOR')" class="w-full bg-blue-600 text-white py-4 rounded-xl hover:bg-blue-700 transition flex items-center justify-center space-x-3 group">
+                    <i class="fas fa-user-tie text-xl group-hover:scale-110 transition"></i>
+                    <div class="text-left">
+                        <div class="font-bold">Supervisor</div>
+                        <div class="text-sm opacity-90">Limited access - View & Upload only</div>
+                    </div>
+                </button>
+            </div>
+            
+            <div class="mt-6 text-center text-sm text-gray-500">
+                <i class="fas fa-info-circle mr-1"></i>
+                Data is stored locally in your browser
             </div>
         </div>
-    </nav>
+    </div>
 
-    <!-- Main Content -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        <!-- Dashboard Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 fade-in">
-            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
-                <div class="flex items-center">
-                    <div class="p-3 rounded-full bg-blue-100 text-blue-600">
-                        <i class="fas fa-store text-xl"></i>
+    <!-- Main Application -->
+    <div id="mainApp" class="hidden">
+        <!-- Navigation -->
+        <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <i class="fas fa-store text-blue-600 text-2xl mr-3"></i>
+                        <div>
+                            <h1 class="text-xl font-bold text-gray-900">Store Activity Manager</h1>
+                            <span id="currentRole" class="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-600"></span>
+                        </div>
                     </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">Total Stores</p>
-                        <p class="text-2xl font-bold text-gray-900" id="totalStores">0</p>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
-                <div class="flex items-center">
-                    <div class="p-3 rounded-full bg-green-100 text-green-600">
-                        <i class="fas fa-calendar-check text-xl"></i>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">Active Activities</p>
-                        <p class="text-2xl font-bold text-gray-900" id="totalActivities">0</p>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-yellow-500">
-                <div class="flex items-center">
-                    <div class="p-3 rounded-full bg-yellow-100 text-yellow-600">
-                        <i class="fas fa-exclamation-triangle text-xl"></i>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">Lacking Stores</p>
-                        <p class="text-2xl font-bold text-gray-900" id="lackingStores">0</p>
+                    <div class="flex items-center space-x-4">
+                        <button onclick="app.exportData()" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium" id="exportBtn">
+                            <i class="fas fa-download mr-2"></i>Export Data
+                        </button>
+                        <button onclick="app.importData()" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium" id="importBtn">
+                            <i class="fas fa-upload mr-2"></i>Import Data
+                        </button>
+                        <input type="file" id="importFile" class="hidden" accept=".json" onchange="app.handleImport(this)">
+                        <button onclick="app.logout()" class="text-red-600 hover:text-red-800 px-3 py-2 rounded-md text-sm font-medium">
+                            <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                        </button>
                     </div>
                 </div>
             </div>
-            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
-                <div class="flex items-center">
-                    <div class="p-3 rounded-full bg-purple-100 text-purple-600">
-                        <i class="fas fa-percentage text-xl"></i>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">Participation Rate</p>
-                        <p class="text-2xl font-bold text-gray-900" id="participationRate">0%</p>
-                    </div>
-                </div>
-            </div>
-        </div>
+        </nav>
 
-        <!-- Tabs -->
-        <div class="bg-white rounded-t-lg shadow border-b border-gray-200">
-            <div class="flex space-x-8 px-6">
-                <button onclick="app.switchTab('calendar')" id="tab-calendar" class="tab-active py-4 px-1 text-sm font-medium text-gray-900 whitespace-nowrap">
-                    <i class="fas fa-calendar-alt mr-2"></i>Activity Calendar
-                </button>
-                <button onclick="app.switchTab('stores')" id="tab-stores" class="py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
-                    <i class="fas fa-store mr-2"></i>Stores Management
-                </button>
-                <button onclick="app.switchTab('activities')" id="tab-activities" class="py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
-                    <i class="fas fa-tasks mr-2"></i>Activities
-                </button>
-                <button onclick="app.switchTab('lacking')" id="tab-lacking" class="py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
-                    <i class="fas fa-exclamation-circle mr-2"></i>Lacking Stores
-                </button>
+        <!-- Main Content -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            
+            <!-- Dashboard Stats -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 fade-in">
+                <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                            <i class="fas fa-store text-xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Total Stores</p>
+                            <p class="text-2xl font-bold text-gray-900" id="totalStores">0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-green-100 text-green-600">
+                            <i class="fas fa-calendar-check text-xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Active Activities</p>
+                            <p class="text-2xl font-bold text-gray-900" id="totalActivities">0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-6 border-l-4 border-yellow-500">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                            <i class="fas fa-exclamation-triangle text-xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Lacking Stores</p>
+                            <p class="text-2xl font-bold text-gray-900" id="lackingStores">0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-purple-100 text-purple-600">
+                            <i class="fas fa-percentage text-xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Participation Rate</p>
+                            <p class="text-2xl font-bold text-gray-900" id="participationRate">0%</p>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
 
-        <!-- Calendar View -->
-        <div id="view-calendar" class="bg-white rounded-b-lg shadow p-6 fade-in">
-            <div class="flex justify-between items-center mb-6">
-                <div class="flex items-center space-x-4">
-                    <button onclick="app.changeMonth(-1)" class="p-2 rounded-full hover:bg-gray-100">
-                        <i class="fas fa-chevron-left"></i>
+            <!-- Tabs -->
+            <div class="bg-white rounded-t-lg shadow border-b border-gray-200">
+                <div class="flex space-x-8 px-6 overflow-x-auto">
+                    <button onclick="app.switchTab('calendar')" id="tab-calendar" class="tab-active py-4 px-1 text-sm font-medium text-gray-900 whitespace-nowrap">
+                        <i class="fas fa-calendar-alt mr-2"></i>Activity Calendar
                     </button>
-                    <h2 class="text-2xl font-bold text-gray-900" id="currentMonth">September 2024</h2>
-                    <button onclick="app.changeMonth(1)" class="p-2 rounded-full hover:bg-gray-100">
-                        <i class="fas fa-chevron-right"></i>
+                    <button onclick="app.switchTab('stores')" id="tab-stores" class="py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                        <i class="fas fa-store mr-2"></i>Stores Management
                     </button>
-                </div>
-                <div class="flex space-x-2">
-                    <button onclick="app.openActivityModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
-                        <i class="fas fa-plus mr-2"></i>Add Activity
+                    <button onclick="app.switchTab('activities')" id="tab-activities" class="py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                        <i class="fas fa-tasks mr-2"></i>Activities
+                    </button>
+                    <button onclick="app.switchTab('lacking')" id="tab-lacking" class="py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap admin-only">
+                        <i class="fas fa-exclamation-circle mr-2"></i>Lacking Stores
                     </button>
                 </div>
             </div>
 
-            <!-- Calendar Grid -->
-            <div class="grid grid-cols-7 gap-2 mb-2">
-                <div class="text-center text-sm font-semibold text-gray-600 py-2">Sun</div>
-                <div class="text-center text-sm font-semibold text-gray-600 py-2">Mon</div>
-                <div class="text-center text-sm font-semibold text-gray-600 py-2">Tue</div>
-                <div class="text-center text-sm font-semibold text-gray-600 py-2">Wed</div>
-                <div class="text-center text-sm font-semibold text-gray-600 py-2">Thu</div>
-                <div class="text-center text-sm font-semibold text-gray-600 py-2">Fri</div>
-                <div class="text-center text-sm font-semibold text-gray-600 py-2">Sat</div>
-            </div>
-            <div id="calendarGrid" class="grid grid-cols-7 gap-2">
-                <!-- Calendar days generated by JS -->
+            <!-- Calendar View -->
+            <div id="view-calendar" class="bg-white rounded-b-lg shadow p-6 fade-in">
+                <div class="flex justify-between items-center mb-6">
+                    <div class="flex items-center space-x-4">
+                        <button onclick="app.changeMonth(-1)" class="p-2 rounded-full hover:bg-gray-100 transition">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <h2 class="text-2xl font-bold text-gray-900" id="currentMonth">September 2024</h2>
+                        <button onclick="app.changeMonth(1)" class="p-2 rounded-full hover:bg-gray-100 transition">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    <div class="flex space-x-2 supervisor-hidden">
+                        <button onclick="app.openActivityModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                            <i class="fas fa-plus mr-2"></i>Add Activity
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Calendar Grid -->
+                <div class="grid grid-cols-7 gap-2 mb-2">
+                    <div class="text-center text-sm font-semibold text-gray-600 py-2">Sun</div>
+                    <div class="text-center text-sm font-semibold text-gray-600 py-2">Mon</div>
+                    <div class="text-center text-sm font-semibold text-gray-600 py-2">Tue</div>
+                    <div class="text-center text-sm font-semibold text-gray-600 py-2">Wed</div>
+                    <div class="text-center text-sm font-semibold text-gray-600 py-2">Thu</div>
+                    <div class="text-center text-sm font-semibold text-gray-600 py-2">Fri</div>
+                    <div class="text-center text-sm font-semibold text-gray-600 py-2">Sat</div>
+                </div>
+                <div id="calendarGrid" class="grid grid-cols-7 gap-2">
+                    <!-- Calendar days generated by JS -->
+                </div>
+
+                <!-- Activity Summary -->
+                <div class="mt-6 bg-gray-50 rounded-lg p-4">
+                    <h3 class="font-semibold text-gray-900 mb-3">Activity Summary</h3>
+                    <div id="activitySummary" class="space-y-2">
+                        <!-- Generated by JS -->
+                    </div>
+                </div>
             </div>
 
-            <!-- Activity Summary -->
-            <div class="mt-6 bg-gray-50 rounded-lg p-4">
-                <h3 class="font-semibold text-gray-900 mb-3">Activity Summary</h3>
-                <div id="activitySummary" class="space-y-2">
+            <!-- Stores Management View -->
+            <div id="view-stores" class="bg-white rounded-b-lg shadow p-6 hidden fade-in">
+                <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900">Store Management</h2>
+                        <p class="text-gray-600 mt-1">Upload and manage stores per account</p>
+                    </div>
+                    <div class="flex space-x-3 supervisor-hidden">
+                        <button onclick="app.downloadStoreTemplate()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition">
+                            <i class="fas fa-download mr-2"></i>Download Template
+                        </button>
+                        <button onclick="document.getElementById('storeUpload').click()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                            <i class="fas fa-upload mr-2"></i>Upload Stores
+                        </button>
+                        <input type="file" id="storeUpload" class="hidden" accept=".csv" onchange="app.handleStoreUpload(this)">
+                    </div>
+                </div>
+
+                <!-- Search and Filter -->
+                <div class="bg-gray-50 rounded-lg p-4 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                            <input type="text" id="storeSearch" placeholder="Search outlet name..." 
+                                   class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   oninput="app.filterStores()">
+                        </div>
+                        <select id="filterArea" onchange="app.filterStores()" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="">All Areas</option>
+                        </select>
+                        <select id="filterSupervisor" onchange="app.filterStores()" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="">All Supervisors</option>
+                        </select>
+                        <select id="sortStores" onchange="app.filterStores()" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="name">Sort by Name</option>
+                            <option value="area">Sort by Area</option>
+                            <option value="supervisor">Sort by Supervisor</option>
+                            <option value="account">Sort by Account</option>
+                        </select>
+                    </div>
+                    <div class="mt-3 flex justify-between items-center">
+                        <span id="storeCount" class="text-sm text-gray-600">Showing all stores</span>
+                        <button onclick="app.clearFilters()" class="text-sm text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-undo mr-1"></i>Clear Filters
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Template Format Info -->
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    <h3 class="font-semibold text-blue-900 mb-2"><i class="fas fa-info-circle mr-2"></i>Required CSV Format</h3>
+                    <p class="text-sm text-blue-800 mb-2">Your CSV must include these exact headers:</p>
+                    <code class="bg-blue-100 px-2 py-1 rounded text-blue-900 text-sm">OUTLET NAME, AREA, SUPERVISOR, ACCOUNT/RD, OUTLET ACCOUNT</code>
+                </div>
+
+                <!-- Stores Table -->
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="app.sortTable('outletName')">
+                                    Outlet Name <i class="fas fa-sort ml-1"></i>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="app.sortTable('area')">
+                                    Area <i class="fas fa-sort ml-1"></i>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="app.sortTable('supervisor')">
+                                    Supervisor <i class="fas fa-sort ml-1"></i>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account/RD</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Outlet Account</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider supervisor-hidden">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="storesTableBody" class="bg-white divide-y divide-gray-200">
+                            <!-- Generated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="emptyStores" class="hidden text-center py-12 empty-state rounded-lg">
+                    <i class="fas fa-store text-4xl text-gray-400 mb-4"></i>
+                    <p class="text-gray-500">No stores found matching your criteria</p>
+                </div>
+            </div>
+
+            <!-- Activities View -->
+            <div id="view-activities" class="bg-white rounded-b-lg shadow p-6 hidden fade-in">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900">Activity Management</h2>
+                        <p class="text-gray-600 mt-1">Upload and manage activities per account</p>
+                    </div>
+                    <div class="flex space-x-3 supervisor-hidden">
+                        <button onclick="app.downloadActivityTemplate()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition">
+                            <i class="fas fa-download mr-2"></i>Download Template
+                        </button>
+                        <button onclick="document.getElementById('activityUpload').click()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
+                            <i class="fas fa-upload mr-2"></i>Upload Activities
+                        </button>
+                        <input type="file" id="activityUpload" class="hidden" accept=".csv" onchange="app.handleActivityUpload(this)">
+                    </div>
+                </div>
+
+                <!-- Bulk Actions -->
+                <div id="bulkActions" class="hidden bg-gray-100 rounded-lg p-4 mb-6 flex justify-between items-center">
+                    <span class="text-sm font-medium text-gray-700"><span id="selectedCount">0</span> activities selected</span>
+                    <div class="space-x-2">
+                        <button onclick="app.selectAllActivities()" class="px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50">
+                            Select All
+                        </button>
+                        <button onclick="app.deselectAllActivities()" class="px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50">
+                            Deselect All
+                        </button>
+                        <button onclick="app.deleteSelectedActivities()" class="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700">
+                            <i class="fas fa-trash mr-1"></i>Delete Selected
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Template Format Info -->
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                    <h3 class="font-semibold text-green-900 mb-2"><i class="fas fa-info-circle mr-2"></i>Required CSV Format</h3>
+                    <p class="text-sm text-green-800 mb-2">Your CSV must include these exact headers:</p>
+                    <code class="bg-green-100 px-2 py-1 rounded text-green-900 text-sm">ACTIVITY NAME, PARTICIPATING BRANCH, SUPERVISOR, AREA</code>
+                </div>
+
+                <!-- Activities List -->
+                <div id="activitiesList" class="space-y-3">
                     <!-- Generated by JS -->
                 </div>
-            </div>
-        </div>
-
-        <!-- Stores Management View -->
-        <div id="view-stores" class="bg-white rounded-b-lg shadow p-6 hidden fade-in">
-            <div class="flex justify-between items-center mb-6">
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-900">Store Management</h2>
-                    <p class="text-gray-600 mt-1">Upload stores per account using the template format</p>
-                </div>
-                <div class="flex space-x-3">
-                    <button onclick="app.downloadStoreTemplate()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition">
-                        <i class="fas fa-download mr-2"></i>Download Template
-                    </button>
-                    <button onclick="document.getElementById('storeUpload').click()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
-                        <i class="fas fa-upload mr-2"></i>Upload Stores
-                    </button>
-                    <input type="file" id="storeUpload" class="hidden" accept=".csv" onchange="app.handleStoreUpload(this)">
+                
+                <div id="emptyActivities" class="hidden text-center py-12 empty-state rounded-lg">
+                    <i class="fas fa-tasks text-4xl text-gray-400 mb-4"></i>
+                    <p class="text-gray-500">No activities found</p>
                 </div>
             </div>
 
-            <!-- Template Format Info -->
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                <h3 class="font-semibold text-blue-900 mb-2"><i class="fas fa-info-circle mr-2"></i>Required CSV Format</h3>
-                <p class="text-sm text-blue-800 mb-2">Your CSV must include these exact headers:</p>
-                <code class="bg-blue-100 px-2 py-1 rounded text-blue-900 text-sm">OUTLET NAME, AREA, SUPERVISOR, ACCOUNT/RD, OUTLET ACCOUNT</code>
-            </div>
-
-            <!-- Stores Table -->
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Outlet Name</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Area</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supervisor</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account/RD</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Outlet Account</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="storesTableBody" class="bg-white divide-y divide-gray-200">
-                        <!-- Generated by JS -->
-                    </tbody>
-                </table>
-            </div>
-            
-            <div id="emptyStores" class="hidden text-center py-12 empty-state rounded-lg">
-                <i class="fas fa-store text-4xl text-gray-400 mb-4"></i>
-                <p class="text-gray-500">No stores uploaded yet. Use the template to upload stores.</p>
-            </div>
-        </div>
-
-        <!-- Activities View -->
-        <div id="view-activities" class="bg-white rounded-b-lg shadow p-6 hidden fade-in">
-            <div class="flex justify-between items-center mb-6">
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-900">Activity Management</h2>
-                    <p class="text-gray-600 mt-1">Upload activities per account using the template format</p>
+            <!-- Lacking Stores View (Admin Only) -->
+            <div id="view-lacking" class="bg-white rounded-b-lg shadow p-6 hidden fade-in">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900">Lacking Stores Management</h2>
+                        <p class="text-gray-600 mt-1">Admin: Upload stores with validation issues</p>
+                    </div>
+                    <div class="flex space-x-3">
+                        <button onclick="app.downloadLackingTemplate()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition">
+                            <i class="fas fa-download mr-2"></i>Download Template
+                        </button>
+                        <button onclick="document.getElementById('lackingUpload').click()" class="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition">
+                            <i class="fas fa-upload mr-2"></i>Upload Lacking Stores
+                        </button>
+                        <input type="file" id="lackingUpload" class="hidden" accept=".csv" onchange="app.handleLackingUpload(this)">
+                    </div>
                 </div>
-                <div class="flex space-x-3">
-                    <button onclick="app.downloadActivityTemplate()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition">
-                        <i class="fas fa-download mr-2"></i>Download Template
-                    </button>
-                    <button onclick="document.getElementById('activityUpload').click()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
-                        <i class="fas fa-upload mr-2"></i>Upload Activities
-                    </button>
-                    <input type="file" id="activityUpload" class="hidden" accept=".csv" onchange="app.handleActivityUpload(this)">
+
+                <!-- Template Format Info -->
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                    <h3 class="font-semibold text-yellow-900 mb-2"><i class="fas fa-exclamation-triangle mr-2"></i>Required CSV Format</h3>
+                    <p class="text-sm text-yellow-800 mb-2">Your CSV must include these exact headers:</p>
+                    <code class="bg-yellow-100 px-2 py-1 rounded text-yellow-900 text-sm">ACTIVITY NAME, BRANCH, SUPERVISOR, REMARKS</code>
                 </div>
-            </div>
 
-            <!-- Template Format Info -->
-            <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-                <h3 class="font-semibold text-green-900 mb-2"><i class="fas fa-info-circle mr-2"></i>Required CSV Format</h3>
-                <p class="text-sm text-green-800 mb-2">Your CSV must include these exact headers:</p>
-                <code class="bg-green-100 px-2 py-1 rounded text-green-900 text-sm">ACTIVITY NAME, PARTICIPATING BRANCH, SUPERVISOR, AREA</code>
-            </div>
-
-            <!-- Activities List -->
-            <div id="activitiesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <!-- Generated by JS -->
-            </div>
-            
-            <div id="emptyActivities" class="hidden text-center py-12 empty-state rounded-lg">
-                <i class="fas fa-tasks text-4xl text-gray-400 mb-4"></i>
-                <p class="text-gray-500">No activities created yet. Upload activities or add them via the calendar.</p>
-            </div>
-        </div>
-
-        <!-- Lacking Stores View (Admin Only) -->
-        <div id="view-lacking" class="bg-white rounded-b-lg shadow p-6 hidden fade-in">
-            <div class="flex justify-between items-center mb-6">
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-900">Lacking Stores Management</h2>
-                    <p class="text-gray-600 mt-1">Admin: Upload stores with validation issues</p>
+                <!-- Lacking Stores Table -->
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Activity Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supervisor</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remarks</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Added</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lackingTableBody" class="bg-white divide-y divide-gray-200">
+                            <!-- Generated by JS -->
+                        </tbody>
+                    </table>
                 </div>
-                <div class="flex space-x-3">
-                    <button onclick="app.downloadLackingTemplate()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition">
-                        <i class="fas fa-download mr-2"></i>Download Template
-                    </button>
-                    <button onclick="document.getElementById('lackingUpload').click()" class="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition">
-                        <i class="fas fa-upload mr-2"></i>Upload Lacking Stores
-                    </button>
-                    <input type="file" id="lackingUpload" class="hidden" accept=".csv" onchange="app.handleLackingUpload(this)">
+                
+                <div id="emptyLacking" class="hidden text-center py-12 empty-state rounded-lg">
+                    <i class="fas fa-check-circle text-4xl text-gray-400 mb-4"></i>
+                    <p class="text-gray-500">No lacking stores recorded. All stores are validated!</p>
                 </div>
-            </div>
-
-            <!-- Template Format Info -->
-            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-                <h3 class="font-semibold text-yellow-900 mb-2"><i class="fas fa-exclamation-triangle mr-2"></i>Required CSV Format</h3>
-                <p class="text-sm text-yellow-800 mb-2">Your CSV must include these exact headers:</p>
-                <code class="bg-yellow-100 px-2 py-1 rounded text-yellow-900 text-sm">BRANCH, SUPERVISOR, REMARKS</code>
-            </div>
-
-            <!-- Lacking Stores Table -->
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supervisor</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remarks</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Added</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="lackingTableBody" class="bg-white divide-y divide-gray-200">
-                        <!-- Generated by JS -->
-                    </tbody>
-                </table>
-            </div>
-            
-            <div id="emptyLacking" class="hidden text-center py-12 empty-state rounded-lg">
-                <i class="fas fa-check-circle text-4xl text-gray-400 mb-4"></i>
-                <p class="text-gray-500">No lacking stores recorded. All stores are validated!</p>
             </div>
         </div>
     </div>
@@ -320,9 +426,15 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">Activity Name</label>
                     <input type="text" id="actName" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                    <input type="date" id="actDate" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                        <input type="date" id="actStartDate" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                        <input type="date" id="actEndDate" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Participating Branch</label>
@@ -399,16 +511,67 @@
                 this.stores = JSON.parse(localStorage.getItem('stores')) || [];
                 this.activities = JSON.parse(localStorage.getItem('activities')) || [];
                 this.lackingStores = JSON.parse(localStorage.getItem('lackingStores')) || [];
-                this.init();
+                this.currentUser = null;
+                this.selectedActivities = new Set();
+                this.sortDirection = {};
+                this.filteredStores = [];
             }
 
-            init() {
-                this.updateStats();
-                this.renderCalendar();
-                this.renderStores();
-                this.renderActivities();
-                this.renderLackingStores();
-                this.populateBranchSelect();
+            // Authentication
+            login(role) {
+                this.currentUser = { role: role, loginTime: new Date().toISOString() };
+                localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+                
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden');
+                
+                const roleBadge = document.getElementById('currentRole');
+                roleBadge.textContent = role;
+                roleBadge.className = `text-xs font-medium px-2 py-1 rounded-full ${role === 'ADMIN' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`;
+                
+                this.applyRolePermissions();
+                this.init();
+                this.showToast(`Logged in as ${role}`);
+            }
+
+            logout() {
+                this.currentUser = null;
+                localStorage.removeItem('currentUser');
+                location.reload();
+            }
+
+            applyRolePermissions() {
+                const isAdmin = this.currentUser?.role === 'ADMIN';
+                
+                // Hide admin-only elements for supervisors
+                document.querySelectorAll('.admin-only').forEach(el => {
+                    el.style.display = isAdmin ? 'block' : 'none';
+                });
+                
+                // Hide supervisor-restricted elements
+                document.querySelectorAll('.supervisor-hidden').forEach(el => {
+                    el.style.display = isAdmin ? 'block' : 'none';
+                });
+                
+                // Disable export/import for supervisors
+                if (!isAdmin) {
+                    document.getElementById('exportBtn').style.display = 'none';
+                    document.getElementById('importBtn').style.display = 'none';
+                }
+            }
+
+            checkAuth() {
+                const saved = localStorage.getItem('currentUser');
+                if (saved) {
+                    this.currentUser = JSON.parse(saved);
+                    document.getElementById('loginScreen').classList.add('hidden');
+                    document.getElementById('mainApp').classList.remove('hidden');
+                    const roleBadge = document.getElementById('currentRole');
+                    roleBadge.textContent = this.currentUser.role;
+                    roleBadge.className = `text-xs font-medium px-2 py-1 rounded-full ${this.currentUser.role === 'ADMIN' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`;
+                    this.applyRolePermissions();
+                    this.init();
+                }
             }
 
             // Data Persistence
@@ -432,6 +595,12 @@
 
             // Tab Switching
             switchTab(tabName) {
+                // Check permissions
+                if (tabName === 'lacking' && this.currentUser?.role !== 'ADMIN') {
+                    this.showToast('Access denied. Admin only.', 'error');
+                    return;
+                }
+                
                 ['calendar', 'stores', 'activities', 'lacking'].forEach(t => {
                     document.getElementById(`view-${t}`).classList.add('hidden');
                     document.getElementById(`tab-${t}`).classList.remove('tab-active', 'text-gray-900');
@@ -443,12 +612,12 @@
                 document.getElementById(`tab-${tabName}`).classList.remove('text-gray-500');
                 
                 if (tabName === 'calendar') this.renderCalendar();
-                if (tabName === 'stores') this.renderStores();
+                if (tabName === 'stores') { this.renderStores(); this.populateFilters(); }
                 if (tabName === 'activities') this.renderActivities();
                 if (tabName === 'lacking') this.renderLackingStores();
             }
 
-            // Calendar Functions
+            // Calendar Functions with Duration Display
             changeMonth(delta) {
                 this.currentDate.setMonth(this.currentDate.getMonth() + delta);
                 this.renderCalendar();
@@ -472,18 +641,59 @@
                     grid.innerHTML += `<div class="calendar-day bg-gray-50 rounded-lg"></div>`;
                 }
                 
+                // Group activities by name for duration calculation
+                const activityGroups = {};
+                this.activities.forEach(act => {
+                    if (!activityGroups[act.name]) {
+                        activityGroups[act.name] = [];
+                    }
+                    activityGroups[act.name].push(act);
+                });
+                
+                // Calculate durations
+                const activityDurations = {};
+                Object.entries(activityGroups).forEach(([name, acts]) => {
+                    const dates = acts.map(a => new Date(a.date)).sort((a, b) => a - b);
+                    if (dates.length > 0) {
+                        const first = dates[0];
+                        const last = dates[dates.length - 1];
+                        const days = Math.ceil((last - first) / (1000 * 60 * 60 * 24)) + 1;
+                        activityDurations[name] = {
+                            days: days,
+                            start: acts[0].date,
+                            end: acts[acts.length - 1].date,
+                            count: acts.length
+                        };
+                    }
+                });
+                
                 // Days
                 for (let day = 1; day <= daysInMonth; day++) {
                     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                     const dayActivities = this.activities.filter(a => a.date === dateStr);
+                    
+                    // Group by activity name to avoid duplicates
+                    const uniqueActivities = {};
+                    dayActivities.forEach(act => {
+                        if (!uniqueActivities[act.name]) {
+                            uniqueActivities[act.name] = act;
+                        }
+                    });
+                    
                     const hasLacking = this.lackingStores.some(l => l.date === dateStr);
                     
                     let activitiesHtml = '';
-                    dayActivities.forEach(act => {
+                    Object.values(uniqueActivities).forEach(act => {
+                        const duration = activityDurations[act.name];
+                        const durationText = duration && duration.days > 1 ? `${duration.days} days` : '1 day';
+                        
                         activitiesHtml += `
                             <div class="activity-pill text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mb-1 truncate cursor-pointer hover:bg-blue-200" 
-                                 onclick="app.showDayDetails('${dateStr}')">
-                                ${act.name}
+                                 onclick="app.showDayDetails('${dateStr}')" title="${act.name} - ${durationText}">
+                                <div class="font-semibold truncate">${act.name}</div>
+                                <div class="text-xs opacity-75 flex items-center mt-0.5">
+                                    <i class="fas fa-clock mr-1 text-xs"></i>${durationText}
+                                </div>
                             </div>
                         `;
                     });
@@ -506,176 +716,145 @@
                             <div class="space-y-1">
                                 ${activitiesHtml}
                             </div>
-                            ${dayActivities.length > 0 ? `<div class="text-xs text-gray-500 mt-1">${dayActivities.length} activity(s)</div>` : ''}
+                            ${Object.keys(uniqueActivities).length > 0 ? `<div class="text-xs text-gray-500 mt-1">${Object.keys(uniqueActivities).length} activity type(s)</div>` : ''}
                         </div>
                     `;
                 }
                 
-                this.renderActivitySummary();
+                this.renderActivitySummary(activityDurations);
             }
 
-            renderActivitySummary() {
-                const summary = {};
-                this.activities.forEach(act => {
-                    if (!summary[act.name]) {
-                        summary[act.name] = { count: 0, dates: [] };
-                    }
-                    summary[act.name].count++;
-                    if (!summary[act.name].dates.includes(act.date)) {
-                        summary[act.name].dates.push(act.date);
-                    }
-                });
-                
+            renderActivitySummary(durations) {
                 const container = document.getElementById('activitySummary');
-                if (Object.keys(summary).length === 0) {
+                if (Object.keys(durations).length === 0) {
                     container.innerHTML = '<p class="text-gray-500 text-sm">No activities scheduled for this month</p>';
                     return;
                 }
                 
-                container.innerHTML = Object.entries(summary).map(([name, data]) => `
+                container.innerHTML = Object.entries(durations).map(([name, data]) => `
                     <div class="flex justify-between items-center bg-white p-3 rounded border">
                         <div>
                             <span class="font-medium text-gray-900">${name}</span>
-                            <span class="text-sm text-gray-500 ml-2">(${data.dates.length} days)</span>
+                            <div class="text-xs text-gray-500 mt-1">
+                                <i class="fas fa-calendar-alt mr-1"></i>${data.start} to ${data.end}
+                            </div>
                         </div>
-                        <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">${data.count} instances</span>
+                        <div class="text-right">
+                            <span class="duration-badge text-white text-xs px-3 py-1 rounded-full font-semibold">${data.days} days</span>
+                            <div class="text-xs text-gray-500 mt-1">${data.count} instance(s)</div>
+                        </div>
                     </div>
                 `).join('');
             }
 
-            // Modal Functions
-            openActivityModal(date = null) {
-                document.getElementById('activityModal').classList.remove('hidden');
-                if (date) document.getElementById('actDate').value = date;
-                this.populateBranchSelect();
-            }
-
-            closeActivityModal() {
-                document.getElementById('activityModal').classList.add('hidden');
-                document.getElementById('activityForm').reset();
-            }
-
-            saveActivity(e) {
-                e.preventDefault();
-                const activity = {
-                    id: Date.now(),
-                    name: document.getElementById('actName').value,
-                    date: document.getElementById('actDate').value,
-                    branch: document.getElementById('actBranch').value,
-                    supervisor: document.getElementById('actSupervisor').value,
-                    area: document.getElementById('actArea').value
-                };
+            // Store Management with Filter & Sort
+            populateFilters() {
+                const areas = [...new Set(this.stores.map(s => s.area))].sort();
+                const supervisors = [...new Set(this.stores.map(s => s.supervisor))].sort();
                 
-                this.activities.push(activity);
-                this.saveData();
-                this.closeActivityModal();
-                this.renderCalendar();
-                this.showToast('Activity saved successfully!');
-            }
-
-            showDayDetails(date) {
-                const dayActs = this.activities.filter(a => a.date === date);
-                document.getElementById('dayModalTitle').textContent = `Activities on ${date}`;
-                document.getElementById('dayModalContent').innerHTML = dayActs.map(act => `
-                    <div class="border rounded-lg p-4 hover:bg-gray-50">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <h4 class="font-semibold text-gray-900">${act.name}</h4>
-                                <p class="text-sm text-gray-600 mt-1"><i class="fas fa-store mr-2"></i>${act.branch}</p>
-                                <p class="text-sm text-gray-600"><i class="fas fa-user mr-2"></i>${act.supervisor}</p>
-                                <p class="text-sm text-gray-600"><i class="fas fa-map-marker-alt mr-2"></i>${act.area}</p>
-                            </div>
-                            <button onclick="app.deleteActivity(${act.id})" class="text-red-500 hover:text-red-700">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                `).join('');
-                document.getElementById('dayModal').classList.remove('hidden');
-            }
-
-            closeDayModal() {
-                document.getElementById('dayModal').classList.add('hidden');
-            }
-
-            deleteActivity(id) {
-                if (confirm('Delete this activity?')) {
-                    this.activities = this.activities.filter(a => a.id !== id);
-                    this.saveData();
-                    this.closeDayModal();
-                    this.renderCalendar();
-                    this.showToast('Activity deleted');
-                }
-            }
-
-            // Lacking Stores Modal
-            showLackingForDate(date) {
-                const lacking = this.lackingStores.filter(l => l.date === date || !l.date);
-                document.getElementById('lackingList').innerHTML = lacking.length > 0 ? lacking.map(l => `
-                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 store-card">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <h4 class="font-semibold text-gray-900">${l.branch}</h4>
-                                <p class="text-sm text-gray-600"><i class="fas fa-user mr-2"></i>Supervisor: ${l.supervisor}</p>
-                                <p class="text-sm text-gray-600 mt-1"><i class="fas fa-comment mr-2"></i>${l.remarks}</p>
-                                <p class="text-xs text-gray-400 mt-2">Added: ${new Date(l.dateAdded).toLocaleDateString()}</p>
-                            </div>
-                            <button onclick="app.resolveLacking(${l.id})" class="text-green-600 hover:text-green-800 text-sm font-medium">
-                                <i class="fas fa-check mr-1"></i>Resolve
-                            </button>
-                        </div>
-                    </div>
-                `).join('') : '<p class="text-gray-500 text-center py-4">No lacking stores for this date</p>';
+                const areaSelect = document.getElementById('filterArea');
+                const supervisorSelect = document.getElementById('filterSupervisor');
                 
-                document.getElementById('lackingModal').classList.remove('hidden');
+                areaSelect.innerHTML = '<option value="">All Areas</option>' + 
+                    areas.map(a => `<option value="${a}">${a}</option>`).join('');
+                    
+                supervisorSelect.innerHTML = '<option value="">All Supervisors</option>' + 
+                    supervisors.map(s => `<option value="${s}">${s}</option>`).join('');
             }
 
-            closeLackingModal() {
-                document.getElementById('lackingModal').classList.add('hidden');
+            filterStores() {
+                const search = document.getElementById('storeSearch').value.toLowerCase();
+                const area = document.getElementById('filterArea').value;
+                const supervisor = document.getElementById('filterSupervisor').value;
+                const sort = document.getElementById('sortStores').value;
+                
+                this.filteredStores = this.stores.filter(store => {
+                    const matchesSearch = store.outletName.toLowerCase().includes(search) ||
+                                        store.outletAccount.toLowerCase().includes(search);
+                    const matchesArea = !area || store.area === area;
+                    const matchesSupervisor = !supervisor || store.supervisor === supervisor;
+                    return matchesSearch && matchesArea && matchesSupervisor;
+                });
+                
+                // Sort
+                this.filteredStores.sort((a, b) => {
+                    let valA, valB;
+                    switch(sort) {
+                        case 'area': valA = a.area; valB = b.area; break;
+                        case 'supervisor': valA = a.supervisor; valB = b.supervisor; break;
+                        case 'account': valA = a.accountRd; valB = b.accountRd; break;
+                        default: valA = a.outletName; valB = b.outletName;
+                    }
+                    return valA.localeCompare(valB);
+                });
+                
+                document.getElementById('storeCount').textContent = `Showing ${this.filteredStores.length} of ${this.stores.length} stores`;
+                this.renderStoresTable();
             }
 
-            resolveLacking(id) {
-                this.lackingStores = this.lackingStores.filter(l => l.id !== id);
-                this.saveData();
-                this.showLackingForDate(''); // Refresh
-                this.renderLackingStores();
-                this.updateStats();
-                this.showToast('Store resolved and removed from lacking list');
+            clearFilters() {
+                document.getElementById('storeSearch').value = '';
+                document.getElementById('filterArea').value = '';
+                document.getElementById('filterSupervisor').value = '';
+                document.getElementById('sortStores').value = 'name';
+                this.filterStores();
             }
 
-            // Store Management
+            sortTable(field) {
+                this.sortDirection[field] = !this.sortDirection[field];
+                this.filteredStores.sort((a, b) => {
+                    const valA = a[field].toLowerCase();
+                    const valB = b[field].toLowerCase();
+                    return this.sortDirection[field] ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                });
+                this.renderStoresTable();
+            }
+
             renderStores() {
+                this.filteredStores = [...this.stores];
+                this.filterStores();
+            }
+
+            renderStoresTable() {
                 const tbody = document.getElementById('storesTableBody');
                 const empty = document.getElementById('emptyStores');
                 
-                if (this.stores.length === 0) {
+                if (this.filteredStores.length === 0) {
                     tbody.innerHTML = '';
                     empty.classList.remove('hidden');
                     return;
                 }
                 
                 empty.classList.add('hidden');
-                tbody.innerHTML = this.stores.map(store => `
+                const isAdmin = this.currentUser?.role === 'ADMIN';
+                
+                tbody.innerHTML = this.filteredStores.map(store => `
                     <tr class="hover:bg-gray-50">
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${store.outletName}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${store.area}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${store.supervisor}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${store.accountRd}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${store.outletAccount}</td>
+                        ${isAdmin ? `
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             <button onclick="app.deleteStore(${store.id})" class="text-red-600 hover:text-red-900">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </td>
+                        ` : '<td></td>'}
                     </tr>
                 `).join('');
             }
 
             deleteStore(id) {
+                if (this.currentUser?.role !== 'ADMIN') {
+                    this.showToast('Only admins can delete stores', 'error');
+                    return;
+                }
                 if (confirm('Delete this store?')) {
                     this.stores = this.stores.filter(s => s.id !== id);
                     this.saveData();
-                    this.renderStores();
+                    this.filterStores();
                     this.populateBranchSelect();
                     this.showToast('Store deleted');
                 }
@@ -689,35 +868,262 @@
                 select.value = currentVal;
             }
 
-            // Activities View
+            // Activities with Selection
             renderActivities() {
                 const container = document.getElementById('activitiesList');
                 const empty = document.getElementById('emptyActivities');
+                const bulkActions = document.getElementById('bulkActions');
+                const isAdmin = this.currentUser?.role === 'ADMIN';
                 
                 if (this.activities.length === 0) {
                     container.innerHTML = '';
                     empty.classList.remove('hidden');
+                    bulkActions.classList.add('hidden');
                     return;
                 }
                 
                 empty.classList.add('hidden');
-                container.innerHTML = this.activities.map(act => `
+                bulkActions.classList.remove('hidden');
+                document.getElementById('selectedCount').textContent = this.selectedActivities.size;
+                
+                // Group by activity name to show consolidated view
+                const grouped = {};
+                this.activities.forEach(act => {
+                    if (!grouped[act.name]) {
+                        grouped[act.name] = [];
+                    }
+                    grouped[act.name].push(act);
+                });
+                
+                container.innerHTML = Object.entries(grouped).map(([name, acts]) => {
+                    const allSelected = acts.every(a => this.selectedActivities.has(a.id));
+                    const someSelected = acts.some(a => this.selectedActivities.has(a.id));
+                    
+                    return `
                     <div class="border rounded-lg p-4 hover:shadow-md transition store-card bg-white">
-                        <div class="flex justify-between items-start mb-2">
-                            <h3 class="font-semibold text-gray-900">${act.name}</h3>
-                            <button onclick="app.deleteActivity(${act.id})" class="text-red-500 hover:text-red-700">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                        <div class="flex items-start justify-between">
+                            <div class="flex items-start space-x-3 flex-1">
+                                ${isAdmin ? `
+                                <label class="checkbox-wrapper cursor-pointer mt-1">
+                                    <input type="checkbox" class="hidden" onchange="app.toggleActivityGroup('${name}', this.checked)" 
+                                           ${allSelected ? 'checked' : ''}>
+                                    <div class="w-5 h-5 border-2 border-gray-300 rounded flex items-center justify-center transition ${someSelected && !allSelected ? 'bg-blue-300' : ''}">
+                                        <svg class="w-3 h-3 text-white hidden" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                        </svg>
+                                    </div>
+                                </label>
+                                ` : ''}
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-gray-900">${name}</h3>
+                                    <div class="text-sm text-gray-600 mt-1">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 mr-2">
+                                            ${acts.length} instance(s)
+                                        </span>
+                                        <span class="text-gray-500">
+                                            ${acts[0].branch} • ${acts[0].supervisor}
+                                        </span>
+                                    </div>
+                                    <div class="mt-2 space-y-1">
+                                        ${acts.map(act => `
+                                            <div class="flex items-center justify-between text-sm bg-gray-50 rounded px-2 py-1 ${this.selectedActivities.has(act.id) ? 'bg-blue-50 border border-blue-200' : ''}">
+                                                <span class="text-gray-600"><i class="fas fa-calendar mr-2 text-gray-400"></i>${act.date}</span>
+                                                ${isAdmin ? `
+                                                <button onclick="app.deleteActivity(${act.id})" class="text-red-500 hover:text-red-700 ml-2">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                                ` : ''}
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <p class="text-sm text-gray-600 mb-1"><i class="fas fa-calendar mr-2 text-blue-500"></i>${act.date}</p>
-                        <p class="text-sm text-gray-600 mb-1"><i class="fas fa-store mr-2 text-green-500"></i>${act.branch}</p>
-                        <p class="text-sm text-gray-600 mb-1"><i class="fas fa-user mr-2 text-purple-500"></i>${act.supervisor}</p>
-                        <p class="text-sm text-gray-600"><i class="fas fa-map-marker-alt mr-2 text-orange-500"></i>${act.area}</p>
                     </div>
-                `).join('');
+                `}).join('');
             }
 
-            // Lacking Stores View
+            toggleActivityGroup(name, checked) {
+                const groupActs = this.activities.filter(a => a.name === name);
+                groupActs.forEach(act => {
+                    if (checked) {
+                        this.selectedActivities.add(act.id);
+                    } else {
+                        this.selectedActivities.delete(act.id);
+                    }
+                });
+                this.renderActivities();
+            }
+
+            selectAllActivities() {
+                this.activities.forEach(a => this.selectedActivities.add(a.id));
+                this.renderActivities();
+            }
+
+            deselectAllActivities() {
+                this.selectedActivities.clear();
+                this.renderActivities();
+            }
+
+            deleteSelectedActivities() {
+                if (this.selectedActivities.size === 0) return;
+                if (!confirm(`Delete ${this.selectedActivities.size} selected activities?`)) return;
+                
+                this.activities = this.activities.filter(a => !this.selectedActivities.has(a.id));
+                this.selectedActivities.clear();
+                this.saveData();
+                this.renderActivities();
+                this.renderCalendar();
+                this.showToast('Selected activities deleted');
+            }
+
+            deleteActivity(id) {
+                if (this.currentUser?.role !== 'ADMIN') {
+                    this.showToast('Only admins can delete activities', 'error');
+                    return;
+                }
+                if (confirm('Delete this activity?')) {
+                    this.activities = this.activities.filter(a => a.id !== id);
+                    this.selectedActivities.delete(id);
+                    this.saveData();
+                    this.renderActivities();
+                    this.renderCalendar();
+                    this.showToast('Activity deleted');
+                }
+            }
+
+            // Modal Functions
+            openActivityModal(date = null) {
+                if (this.currentUser?.role !== 'ADMIN') {
+                    this.showToast('Only admins can add activities', 'error');
+                    return;
+                }
+                document.getElementById('activityModal').classList.remove('hidden');
+                if (date) {
+                    document.getElementById('actStartDate').value = date;
+                    document.getElementById('actEndDate').value = date;
+                }
+                this.populateBranchSelect();
+            }
+
+            closeActivityModal() {
+                document.getElementById('activityModal').classList.add('hidden');
+                document.getElementById('activityForm').reset();
+            }
+
+            saveActivity(e) {
+                e.preventDefault();
+                const name = document.getElementById('actName').value;
+                const startDate = new Date(document.getElementById('actStartDate').value);
+                const endDate = new Date(document.getElementById('actEndDate').value);
+                const branch = document.getElementById('actBranch').value;
+                const supervisor = document.getElementById('actSupervisor').value;
+                const area = document.getElementById('actArea').value;
+                
+                // Create activity for each day in range
+                const newActivities = [];
+                for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                    newActivities.push({
+                        id: Date.now() + Math.random(),
+                        name: name,
+                        date: d.toISOString().split('T')[0],
+                        branch: branch,
+                        supervisor: supervisor,
+                        area: area
+                    });
+                }
+                
+                this.activities = [...this.activities, ...newActivities];
+                this.saveData();
+                this.closeActivityModal();
+                this.renderCalendar();
+                this.showToast(`${newActivities.length} activity day(s) saved successfully!`);
+            }
+
+            showDayDetails(date) {
+                const dayActs = this.activities.filter(a => a.date === date);
+                
+                // Group by activity name
+                const grouped = {};
+                dayActs.forEach(act => {
+                    if (!grouped[act.name]) {
+                        grouped[act.name] = act;
+                    }
+                });
+                
+                document.getElementById('dayModalTitle').textContent = `Activities on ${date}`;
+                document.getElementById('dayModalContent').innerHTML = Object.values(grouped).map(act => {
+                    // Calculate duration
+                    const sameActs = this.activities.filter(a => a.name === act.name);
+                    const dates = sameActs.map(a => new Date(a.date)).sort((a, b) => a - b);
+                    const days = dates.length > 1 ? Math.ceil((dates[dates.length - 1] - dates[0]) / (1000 * 60 * 60 * 24)) + 1 : 1;
+                    
+                    return `
+                    <div class="border rounded-lg p-4 hover:bg-gray-50">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <div class="flex items-center justify-between mb-2">
+                                    <h4 class="font-semibold text-gray-900 text-lg">${act.name}</h4>
+                                    <span class="duration-badge text-white text-xs px-2 py-1 rounded-full">${days} day(s)</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2 text-sm">
+                                    <p class="text-gray-600"><i class="fas fa-store mr-2 text-blue-500"></i>${act.branch}</p>
+                                    <p class="text-gray-600"><i class="fas fa-user mr-2 text-purple-500"></i>${act.supervisor}</p>
+                                    <p class="text-gray-600"><i class="fas fa-map-marker-alt mr-2 text-orange-500"></i>${act.area}</p>
+                                    <p class="text-gray-600"><i class="fas fa-clock mr-2 text-green-500"></i>${dates.length} instance(s)</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `}).join('') || '<p class="text-gray-500 text-center py-4">No activities for this date</p>';
+                
+                document.getElementById('dayModal').classList.remove('hidden');
+            }
+
+            closeDayModal() {
+                document.getElementById('dayModal').classList.add('hidden');
+            }
+
+            // Lacking Stores
+            showLackingForDate(date) {
+                const lacking = this.lackingStores.filter(l => !date || l.date === date);
+                document.getElementById('lackingList').innerHTML = lacking.length > 0 ? lacking.map(l => `
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 store-card">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <div class="flex items-center justify-between mb-2">
+                                    <h4 class="font-semibold text-gray-900">${l.branch}</h4>
+                                    <span class="bg-yellow-200 text-yellow-800 text-xs px-2 py-1 rounded">${l.activityName || 'No Activity'}</span>
+                                </div>
+                                <p class="text-sm text-gray-600"><i class="fas fa-user mr-2"></i>Supervisor: ${l.supervisor}</p>
+                                <p class="text-sm text-gray-600 mt-1"><i class="fas fa-comment mr-2"></i>${l.remarks}</p>
+                                <p class="text-xs text-gray-400 mt-2">Added: ${new Date(l.dateAdded).toLocaleDateString()}</p>
+                            </div>
+                            ${this.currentUser?.role === 'ADMIN' ? `
+                            <button onclick="app.resolveLacking(${l.id})" class="text-green-600 hover:text-green-800 text-sm font-medium ml-4">
+                                <i class="fas fa-check mr-1"></i>Resolve
+                            </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `).join('') : '<p class="text-gray-500 text-center py-4">No lacking stores found</p>';
+                
+                document.getElementById('lackingModal').classList.remove('hidden');
+            }
+
+            closeLackingModal() {
+                document.getElementById('lackingModal').classList.add('hidden');
+            }
+
+            resolveLacking(id) {
+                this.lackingStores = this.lackingStores.filter(l => l.id !== id);
+                this.saveData();
+                this.showLackingForDate('');
+                this.renderLackingStores();
+                this.updateStats();
+                this.showToast('Store resolved and removed from lacking list');
+            }
+
             renderLackingStores() {
                 const tbody = document.getElementById('lackingTableBody');
                 const empty = document.getElementById('emptyLacking');
@@ -731,7 +1137,10 @@
                 empty.classList.add('hidden');
                 tbody.innerHTML = this.lackingStores.map(l => `
                     <tr class="hover:bg-gray-50">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${l.branch}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">${l.activityName || '-'}</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${l.branch}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${l.supervisor}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${l.remarks}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${new Date(l.dateAdded).toLocaleDateString()}</td>
@@ -768,7 +1177,7 @@
             }
 
             downloadLackingTemplate() {
-                const csv = 'BRANCH,SUPERVISOR,REMARKS\n';
+                const csv = 'ACTIVITY NAME,BRANCH,SUPERVISOR,REMARKS\n';
                 this.downloadCSV(csv, 'lacking_stores_template.csv');
             }
 
@@ -858,7 +1267,7 @@
                             branch: rows[i][1]?.trim(),
                             supervisor: rows[i][2]?.trim(),
                             area: rows[i][3]?.trim(),
-                            date: new Date().toISOString().split('T')[0] // Default to today
+                            date: new Date().toISOString().split('T')[0]
                         });
                     }
                     
@@ -887,7 +1296,7 @@
                     }
                     
                     const headers = rows[0].map(h => h.trim().toUpperCase());
-                    const required = ['BRANCH', 'SUPERVISOR', 'REMARKS'];
+                    const required = ['ACTIVITY NAME', 'BRANCH', 'SUPERVISOR', 'REMARKS'];
                     
                     if (!required.every(h => headers.includes(h))) {
                         this.showToast('Invalid CSV format. Please use the template.', 'error');
@@ -896,12 +1305,13 @@
                     
                     const newLacking = [];
                     for (let i = 1; i < rows.length; i++) {
-                        if (rows[i].length < 3) continue;
+                        if (rows[i].length < 4) continue;
                         newLacking.push({
                             id: Date.now() + i,
-                            branch: rows[i][0]?.trim(),
-                            supervisor: rows[i][1]?.trim(),
-                            remarks: rows[i][2]?.trim(),
+                            activityName: rows[i][0]?.trim(),
+                            branch: rows[i][1]?.trim(),
+                            supervisor: rows[i][2]?.trim(),
+                            remarks: rows[i][3]?.trim(),
                             dateAdded: new Date().toISOString()
                         });
                     }
@@ -939,6 +1349,10 @@
 
             // Export/Import
             exportData() {
+                if (this.currentUser?.role !== 'ADMIN') {
+                    this.showToast('Only admins can export data', 'error');
+                    return;
+                }
                 const data = {
                     stores: this.stores,
                     activities: this.activities,
@@ -956,6 +1370,10 @@
             }
 
             importData() {
+                if (this.currentUser?.role !== 'ADMIN') {
+                    this.showToast('Only admins can import data', 'error');
+                    return;
+                }
                 document.getElementById('importFile').click();
             }
 
@@ -989,10 +1407,24 @@
                 toast.classList.remove('hidden');
                 setTimeout(() => toast.classList.add('hidden'), 3000);
             }
+
+            init() {
+                this.updateStats();
+                this.renderCalendar();
+                this.renderStores();
+                this.renderActivities();
+                this.renderLackingStores();
+                this.populateBranchSelect();
+            }
         }
 
         // Initialize app
         const app = new StoreActivityManager();
+        
+        // Check for existing session on load
+        window.addEventListener('load', () => {
+            app.checkAuth();
+        });
     </script>
 </body>
 </html>
