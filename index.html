@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Store Activity Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .slide-in { animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+        
+        .calendar-day { min-height: 100px; transition: all 0.2s; }
+        .calendar-day:hover { transform: scale(1.02); z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        
+        .activity-pill { animation: popIn 0.2s ease-out; }
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        .modal-backdrop { backdrop-filter: blur(4px); }
+        
+        .toast { animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        .progress-bar { transition: width 0.5s ease-out; }
+        
+        .store-card { transition: all 0.2s; }
+        .store-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        
+        .tab-active { border-bottom: 2px solid #3b82f6; color: #3b82f6; }
+        
+        .empty-state { background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-store text-blue-600 text-2xl mr-3"></i>
+                    <h1 class="text-xl font-bold text-gray-900">Store Activity Manager</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="app.exportData()" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+                        <i class="fas fa-download mr-2"></i>Export Data
+                    </button>
+                    <button onclick="app.importData()" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+                        <i class="fas fa-upload mr-2"></i>Import Data
+                    </button>
+                    <input type="file" id="importFile" class="hidden" accept=".json" onchange="app.handleImport(this)">
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- Dashboard Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 fade-in">
+            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                        <i class="fas fa-store text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Total Stores</p>
+                        <p class="text-2xl font-bold text-gray-900" id="totalStores">0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-green-100 text-green-600">
+                        <i class="fas fa-calendar-check text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Active Activities</p>
+                        <p class="text-2xl font-bold text-gray-900" id="totalActivities">0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-yellow-500">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                        <i class="fas fa-exclamation-triangle text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Lacking Stores</p>
+                        <p class="text-2xl font-bold text-gray-900" id="lackingStores">0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-purple-100 text-purple-600">
+                        <i class="fas fa-percentage text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Participation Rate</p>
+                        <p class="text-2xl font-bold text-gray-900" id="participationRate">0%</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="bg-white rounded-t-lg shadow border-b border-gray-200">
+            <div class="flex space-x-8 px-6">
+                <button onclick="app.switchTab('calendar')" id="tab-calendar" class="tab-active py-4 px-1 text-sm font-medium text-gray-900 whitespace-nowrap">
+                    <i class="fas fa-calendar-alt mr-2"></i>Activity Calendar
+                </button>
+                <button onclick="app.switchTab('stores')" id="tab-stores" class="py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                    <i class="fas fa-store mr-2"></i>Stores Management
+                </button>
+                <button onclick="app.switchTab('activities')" id="tab-activities" class="py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                    <i class="fas fa-tasks mr-2"></i>Activities
+                </button>
+                <button onclick="app.switchTab('lacking')" id="tab-lacking" class="py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                    <i class="fas fa-exclamation-circle mr-2"></i>Lacking Stores
+                </button>
+            </div>
+        </div>
+
+        <!-- Calendar View -->
+        <div id="view-calendar" class="bg-white rounded-b-lg shadow p-6 fade-in">
+            <div class="flex justify-between items-center mb-6">
+                <div class="flex items-center space-x-4">
+                    <button onclick="app.changeMonth(-1)" class="p-2 rounded-full hover:bg-gray-100">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <h2 class="text-2xl font-bold text-gray-900" id="currentMonth">September 2024</h2>
+                    <button onclick="app.changeMonth(1)" class="p-2 rounded-full hover:bg-gray-100">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                <div class="flex space-x-2">
+                    <button onclick="app.openActivityModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                        <i class="fas fa-plus mr-2"></i>Add Activity
+                    </button>
+                </div>
+            </div>
+
+            <!-- Calendar Grid -->
+            <div class="grid grid-cols-7 gap-2 mb-2">
+                <div class="text-center text-sm font-semibold text-gray-600 py-2">Sun</div>
+                <div class="text-center text-sm font-semibold text-gray-600 py-2">Mon</div>
+                <div class="text-center text-sm font-semibold text-gray-600 py-2">Tue</div>
+                <div class="text-center text-sm font-semibold text-gray-600 py-2">Wed</div>
+                <div class="text-center text-sm font-semibold text-gray-600 py-2">Thu</div>
+                <div class="text-center text-sm font-semibold text-gray-600 py-2">Fri</div>
+                <div class="text-center text-sm font-semibold text-gray-600 py-2">Sat</div>
+            </div>
+            <div id="calendarGrid" class="grid grid-cols-7 gap-2">
+                <!-- Calendar days generated by JS -->
+            </div>
+
+            <!-- Activity Summary -->
+            <div class="mt-6 bg-gray-50 rounded-lg p-4">
+                <h3 class="font-semibold text-gray-900 mb-3">Activity Summary</h3>
+                <div id="activitySummary" class="space-y-2">
+                    <!-- Generated by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Stores Management View -->
+        <div id="view-stores" class="bg-white rounded-b-lg shadow p-6 hidden fade-in">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900">Store Management</h2>
+                    <p class="text-gray-600 mt-1">Upload stores per account using the template format</p>
+                </div>
+                <div class="flex space-x-3">
+                    <button onclick="app.downloadStoreTemplate()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition">
+                        <i class="fas fa-download mr-2"></i>Download Template
+                    </button>
+                    <button onclick="document.getElementById('storeUpload').click()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                        <i class="fas fa-upload mr-2"></i>Upload Stores
+                    </button>
+                    <input type="file" id="storeUpload" class="hidden" accept=".csv" onchange="app.handleStoreUpload(this)">
+                </div>
+            </div>
+
+            <!-- Template Format Info -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <h3 class="font-semibold text-blue-900 mb-2"><i class="fas fa-info-circle mr-2"></i>Required CSV Format</h3>
+                <p class="text-sm text-blue-800 mb-2">Your CSV must include these exact headers:</p>
+                <code class="bg-blue-100 px-2 py-1 rounded text-blue-900 text-sm">OUTLET NAME, AREA, SUPERVISOR, ACCOUNT/RD, OUTLET ACCOUNT</code>
+            </div>
+
+            <!-- Stores Table -->
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Outlet Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Area</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supervisor</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account/RD</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Outlet Account</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="storesTableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- Generated by JS -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="emptyStores" class="hidden text-center py-12 empty-state rounded-lg">
+                <i class="fas fa-store text-4xl text-gray-400 mb-4"></i>
+                <p class="text-gray-500">No stores uploaded yet. Use the template to upload stores.</p>
+            </div>
+        </div>
+
+        <!-- Activities View -->
+        <div id="view-activities" class="bg-white rounded-b-lg shadow p-6 hidden fade-in">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900">Activity Management</h2>
+                    <p class="text-gray-600 mt-1">Upload activities per account using the template format</p>
+                </div>
+                <div class="flex space-x-3">
+                    <button onclick="app.downloadActivityTemplate()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition">
+                        <i class="fas fa-download mr-2"></i>Download Template
+                    </button>
+                    <button onclick="document.getElementById('activityUpload').click()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
+                        <i class="fas fa-upload mr-2"></i>Upload Activities
+                    </button>
+                    <input type="file" id="activityUpload" class="hidden" accept=".csv" onchange="app.handleActivityUpload(this)">
+                </div>
+            </div>
+
+            <!-- Template Format Info -->
+            <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                <h3 class="font-semibold text-green-900 mb-2"><i class="fas fa-info-circle mr-2"></i>Required CSV Format</h3>
+                <p class="text-sm text-green-800 mb-2">Your CSV must include these exact headers:</p>
+                <code class="bg-green-100 px-2 py-1 rounded text-green-900 text-sm">ACTIVITY NAME, PARTICIPATING BRANCH, SUPERVISOR, AREA</code>
+            </div>
+
+            <!-- Activities List -->
+            <div id="activitiesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Generated by JS -->
+            </div>
+            
+            <div id="emptyActivities" class="hidden text-center py-12 empty-state rounded-lg">
+                <i class="fas fa-tasks text-4xl text-gray-400 mb-4"></i>
+                <p class="text-gray-500">No activities created yet. Upload activities or add them via the calendar.</p>
+            </div>
+        </div>
+
+        <!-- Lacking Stores View (Admin Only) -->
+        <div id="view-lacking" class="bg-white rounded-b-lg shadow p-6 hidden fade-in">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900">Lacking Stores Management</h2>
+                    <p class="text-gray-600 mt-1">Admin: Upload stores with validation issues</p>
+                </div>
+                <div class="flex space-x-3">
+                    <button onclick="app.downloadLackingTemplate()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition">
+                        <i class="fas fa-download mr-2"></i>Download Template
+                    </button>
+                    <button onclick="document.getElementById('lackingUpload').click()" class="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition">
+                        <i class="fas fa-upload mr-2"></i>Upload Lacking Stores
+                    </button>
+                    <input type="file" id="lackingUpload" class="hidden" accept=".csv" onchange="app.handleLackingUpload(this)">
+                </div>
+            </div>
+
+            <!-- Template Format Info -->
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                <h3 class="font-semibold text-yellow-900 mb-2"><i class="fas fa-exclamation-triangle mr-2"></i>Required CSV Format</h3>
+                <p class="text-sm text-yellow-800 mb-2">Your CSV must include these exact headers:</p>
+                <code class="bg-yellow-100 px-2 py-1 rounded text-yellow-900 text-sm">BRANCH, SUPERVISOR, REMARKS</code>
+            </div>
+
+            <!-- Lacking Stores Table -->
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supervisor</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remarks</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Added</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lackingTableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- Generated by JS -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="emptyLacking" class="hidden text-center py-12 empty-state rounded-lg">
+                <i class="fas fa-check-circle text-4xl text-gray-400 mb-4"></i>
+                <p class="text-gray-500">No lacking stores recorded. All stores are validated!</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Activity Modal -->
+    <div id="activityModal" class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full slide-in">
+            <div class="flex justify-between items-center p-6 border-b">
+                <h3 class="text-lg font-bold text-gray-900">Add New Activity</h3>
+                <button onclick="app.closeActivityModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="activityForm" onsubmit="app.saveActivity(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Activity Name</label>
+                    <input type="text" id="actName" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                    <input type="date" id="actDate" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Participating Branch</label>
+                    <select id="actBranch" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">Select Branch</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Supervisor</label>
+                    <input type="text" id="actSupervisor" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Area</label>
+                    <input type="text" id="actArea" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" onclick="app.closeActivityModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save Activity</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Lacking Stores Modal (for Calendar View) -->
+    <div id="lackingModal" class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full slide-in max-h-[80vh] overflow-hidden">
+            <div class="flex justify-between items-center p-6 border-b bg-yellow-50">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900"><i class="fas fa-exclamation-triangle text-yellow-600 mr-2"></i>Lacking Stores</h3>
+                    <p class="text-sm text-gray-600 mt-1">Stores requiring validation or missing information</p>
+                </div>
+                <button onclick="app.closeLackingModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto max-h-[60vh]">
+                <div id="lackingList" class="space-y-3">
+                    <!-- Generated by JS -->
+                </div>
+            </div>
+            <div class="p-6 border-t bg-gray-50 flex justify-between">
+                <button onclick="app.switchTab('lacking'); app.closeLackingModal()" class="text-yellow-600 hover:text-yellow-700 font-medium">
+                    <i class="fas fa-arrow-right mr-2"></i>Go to Lacking Stores Management
+                </button>
+                <button onclick="app.closeLackingModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Day Detail Modal -->
+    <div id="dayModal" class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-lg w-full slide-in">
+            <div class="flex justify-between items-center p-6 border-b">
+                <h3 class="text-lg font-bold text-gray-900" id="dayModalTitle">Activities</h3>
+                <button onclick="app.closeDayModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="dayModalContent" class="p-6 space-y-3">
+                <!-- Generated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-gray-900 text-white px-6 py-3 rounded-lg shadow-lg hidden toast z-50">
+        <span id="toastMessage"></span>
+    </div>
+
+    <script>
+        class StoreActivityManager {
+            constructor() {
+                this.currentDate = new Date();
+                this.stores = JSON.parse(localStorage.getItem('stores')) || [];
+                this.activities = JSON.parse(localStorage.getItem('activities')) || [];
+                this.lackingStores = JSON.parse(localStorage.getItem('lackingStores')) || [];
+                this.init();
+            }
+
+            init() {
+                this.updateStats();
+                this.renderCalendar();
+                this.renderStores();
+                this.renderActivities();
+                this.renderLackingStores();
+                this.populateBranchSelect();
+            }
+
+            // Data Persistence
+            saveData() {
+                localStorage.setItem('stores', JSON.stringify(this.stores));
+                localStorage.setItem('activities', JSON.stringify(this.activities));
+                localStorage.setItem('lackingStores', JSON.stringify(this.lackingStores));
+                this.updateStats();
+            }
+
+            updateStats() {
+                document.getElementById('totalStores').textContent = this.stores.length;
+                document.getElementById('totalActivities').textContent = this.activities.length;
+                document.getElementById('lackingStores').textContent = this.lackingStores.length;
+                
+                const participationRate = this.stores.length > 0 
+                    ? Math.round((this.activities.length / this.stores.length) * 100) 
+                    : 0;
+                document.getElementById('participationRate').textContent = participationRate + '%';
+            }
+
+            // Tab Switching
+            switchTab(tabName) {
+                ['calendar', 'stores', 'activities', 'lacking'].forEach(t => {
+                    document.getElementById(`view-${t}`).classList.add('hidden');
+                    document.getElementById(`tab-${t}`).classList.remove('tab-active', 'text-gray-900');
+                    document.getElementById(`tab-${t}`).classList.add('text-gray-500');
+                });
+                
+                document.getElementById(`view-${tabName}`).classList.remove('hidden');
+                document.getElementById(`tab-${tabName}`).classList.add('tab-active', 'text-gray-900');
+                document.getElementById(`tab-${tabName}`).classList.remove('text-gray-500');
+                
+                if (tabName === 'calendar') this.renderCalendar();
+                if (tabName === 'stores') this.renderStores();
+                if (tabName === 'activities') this.renderActivities();
+                if (tabName === 'lacking') this.renderLackingStores();
+            }
+
+            // Calendar Functions
+            changeMonth(delta) {
+                this.currentDate.setMonth(this.currentDate.getMonth() + delta);
+                this.renderCalendar();
+            }
+
+            renderCalendar() {
+                const year = this.currentDate.getFullYear();
+                const month = this.currentDate.getMonth();
+                
+                document.getElementById('currentMonth').textContent = 
+                    new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                
+                const firstDay = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                
+                const grid = document.getElementById('calendarGrid');
+                grid.innerHTML = '';
+                
+                // Empty cells for days before start of month
+                for (let i = 0; i < firstDay; i++) {
+                    grid.innerHTML += `<div class="calendar-day bg-gray-50 rounded-lg"></div>`;
+                }
+                
+                // Days
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const dayActivities = this.activities.filter(a => a.date === dateStr);
+                    const hasLacking = this.lackingStores.some(l => l.date === dateStr);
+                    
+                    let activitiesHtml = '';
+                    dayActivities.forEach(act => {
+                        activitiesHtml += `
+                            <div class="activity-pill text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mb-1 truncate cursor-pointer hover:bg-blue-200" 
+                                 onclick="app.showDayDetails('${dateStr}')">
+                                ${act.name}
+                            </div>
+                        `;
+                    });
+                    
+                    if (hasLacking) {
+                        activitiesHtml += `
+                            <div class="activity-pill text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded mb-1 truncate cursor-pointer hover:bg-yellow-200" 
+                                 onclick="app.showLackingForDate('${dateStr}')">
+                                <i class="fas fa-exclamation-triangle mr-1"></i>Lacking Stores
+                            </div>
+                        `;
+                    }
+                    
+                    const isToday = new Date().toDateString() === new Date(year, month, day).toDateString();
+                    
+                    grid.innerHTML += `
+                        <div class="calendar-day bg-white border border-gray-200 rounded-lg p-2 cursor-pointer hover:border-blue-300 ${isToday ? 'ring-2 ring-blue-500' : ''}"
+                             onclick="app.openActivityModal('${dateStr}')">
+                            <div class="font-semibold text-gray-700 mb-1">${day}</div>
+                            <div class="space-y-1">
+                                ${activitiesHtml}
+                            </div>
+                            ${dayActivities.length > 0 ? `<div class="text-xs text-gray-500 mt-1">${dayActivities.length} activity(s)</div>` : ''}
+                        </div>
+                    `;
+                }
+                
+                this.renderActivitySummary();
+            }
+
+            renderActivitySummary() {
+                const summary = {};
+                this.activities.forEach(act => {
+                    if (!summary[act.name]) {
+                        summary[act.name] = { count: 0, dates: [] };
+                    }
+                    summary[act.name].count++;
+                    if (!summary[act.name].dates.includes(act.date)) {
+                        summary[act.name].dates.push(act.date);
+                    }
+                });
+                
+                const container = document.getElementById('activitySummary');
+                if (Object.keys(summary).length === 0) {
+                    container.innerHTML = '<p class="text-gray-500 text-sm">No activities scheduled for this month</p>';
+                    return;
+                }
+                
+                container.innerHTML = Object.entries(summary).map(([name, data]) => `
+                    <div class="flex justify-between items-center bg-white p-3 rounded border">
+                        <div>
+                            <span class="font-medium text-gray-900">${name}</span>
+                            <span class="text-sm text-gray-500 ml-2">(${data.dates.length} days)</span>
+                        </div>
+                        <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">${data.count} instances</span>
+                    </div>
+                `).join('');
+            }
+
+            // Modal Functions
+            openActivityModal(date = null) {
+                document.getElementById('activityModal').classList.remove('hidden');
+                if (date) document.getElementById('actDate').value = date;
+                this.populateBranchSelect();
+            }
+
+            closeActivityModal() {
+                document.getElementById('activityModal').classList.add('hidden');
+                document.getElementById('activityForm').reset();
+            }
+
+            saveActivity(e) {
+                e.preventDefault();
+                const activity = {
+                    id: Date.now(),
+                    name: document.getElementById('actName').value,
+                    date: document.getElementById('actDate').value,
+                    branch: document.getElementById('actBranch').value,
+                    supervisor: document.getElementById('actSupervisor').value,
+                    area: document.getElementById('actArea').value
+                };
+                
+                this.activities.push(activity);
+                this.saveData();
+                this.closeActivityModal();
+                this.renderCalendar();
+                this.showToast('Activity saved successfully!');
+            }
+
+            showDayDetails(date) {
+                const dayActs = this.activities.filter(a => a.date === date);
+                document.getElementById('dayModalTitle').textContent = `Activities on ${date}`;
+                document.getElementById('dayModalContent').innerHTML = dayActs.map(act => `
+                    <div class="border rounded-lg p-4 hover:bg-gray-50">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h4 class="font-semibold text-gray-900">${act.name}</h4>
+                                <p class="text-sm text-gray-600 mt-1"><i class="fas fa-store mr-2"></i>${act.branch}</p>
+                                <p class="text-sm text-gray-600"><i class="fas fa-user mr-2"></i>${act.supervisor}</p>
+                                <p class="text-sm text-gray-600"><i class="fas fa-map-marker-alt mr-2"></i>${act.area}</p>
+                            </div>
+                            <button onclick="app.deleteActivity(${act.id})" class="text-red-500 hover:text-red-700">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+                document.getElementById('dayModal').classList.remove('hidden');
+            }
+
+            closeDayModal() {
+                document.getElementById('dayModal').classList.add('hidden');
+            }
+
+            deleteActivity(id) {
+                if (confirm('Delete this activity?')) {
+                    this.activities = this.activities.filter(a => a.id !== id);
+                    this.saveData();
+                    this.closeDayModal();
+                    this.renderCalendar();
+                    this.showToast('Activity deleted');
+                }
+            }
+
+            // Lacking Stores Modal
+            showLackingForDate(date) {
+                const lacking = this.lackingStores.filter(l => l.date === date || !l.date);
+                document.getElementById('lackingList').innerHTML = lacking.length > 0 ? lacking.map(l => `
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 store-card">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h4 class="font-semibold text-gray-900">${l.branch}</h4>
+                                <p class="text-sm text-gray-600"><i class="fas fa-user mr-2"></i>Supervisor: ${l.supervisor}</p>
+                                <p class="text-sm text-gray-600 mt-1"><i class="fas fa-comment mr-2"></i>${l.remarks}</p>
+                                <p class="text-xs text-gray-400 mt-2">Added: ${new Date(l.dateAdded).toLocaleDateString()}</p>
+                            </div>
+                            <button onclick="app.resolveLacking(${l.id})" class="text-green-600 hover:text-green-800 text-sm font-medium">
+                                <i class="fas fa-check mr-1"></i>Resolve
+                            </button>
+                        </div>
+                    </div>
+                `).join('') : '<p class="text-gray-500 text-center py-4">No lacking stores for this date</p>';
+                
+                document.getElementById('lackingModal').classList.remove('hidden');
+            }
+
+            closeLackingModal() {
+                document.getElementById('lackingModal').classList.add('hidden');
+            }
+
+            resolveLacking(id) {
+                this.lackingStores = this.lackingStores.filter(l => l.id !== id);
+                this.saveData();
+                this.showLackingForDate(''); // Refresh
+                this.renderLackingStores();
+                this.updateStats();
+                this.showToast('Store resolved and removed from lacking list');
+            }
+
+            // Store Management
+            renderStores() {
+                const tbody = document.getElementById('storesTableBody');
+                const empty = document.getElementById('emptyStores');
+                
+                if (this.stores.length === 0) {
+                    tbody.innerHTML = '';
+                    empty.classList.remove('hidden');
+                    return;
+                }
+                
+                empty.classList.add('hidden');
+                tbody.innerHTML = this.stores.map(store => `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${store.outletName}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${store.area}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${store.supervisor}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${store.accountRd}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${store.outletAccount}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <button onclick="app.deleteStore(${store.id})" class="text-red-600 hover:text-red-900">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            deleteStore(id) {
+                if (confirm('Delete this store?')) {
+                    this.stores = this.stores.filter(s => s.id !== id);
+                    this.saveData();
+                    this.renderStores();
+                    this.populateBranchSelect();
+                    this.showToast('Store deleted');
+                }
+            }
+
+            populateBranchSelect() {
+                const select = document.getElementById('actBranch');
+                const currentVal = select.value;
+                select.innerHTML = '<option value="">Select Branch</option>' + 
+                    this.stores.map(s => `<option value="${s.outletName}">${s.outletName}</option>`).join('');
+                select.value = currentVal;
+            }
+
+            // Activities View
+            renderActivities() {
+                const container = document.getElementById('activitiesList');
+                const empty = document.getElementById('emptyActivities');
+                
+                if (this.activities.length === 0) {
+                    container.innerHTML = '';
+                    empty.classList.remove('hidden');
+                    return;
+                }
+                
+                empty.classList.add('hidden');
+                container.innerHTML = this.activities.map(act => `
+                    <div class="border rounded-lg p-4 hover:shadow-md transition store-card bg-white">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-semibold text-gray-900">${act.name}</h3>
+                            <button onclick="app.deleteActivity(${act.id})" class="text-red-500 hover:text-red-700">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-1"><i class="fas fa-calendar mr-2 text-blue-500"></i>${act.date}</p>
+                        <p class="text-sm text-gray-600 mb-1"><i class="fas fa-store mr-2 text-green-500"></i>${act.branch}</p>
+                        <p class="text-sm text-gray-600 mb-1"><i class="fas fa-user mr-2 text-purple-500"></i>${act.supervisor}</p>
+                        <p class="text-sm text-gray-600"><i class="fas fa-map-marker-alt mr-2 text-orange-500"></i>${act.area}</p>
+                    </div>
+                `).join('');
+            }
+
+            // Lacking Stores View
+            renderLackingStores() {
+                const tbody = document.getElementById('lackingTableBody');
+                const empty = document.getElementById('emptyLacking');
+                
+                if (this.lackingStores.length === 0) {
+                    tbody.innerHTML = '';
+                    empty.classList.remove('hidden');
+                    return;
+                }
+                
+                empty.classList.add('hidden');
+                tbody.innerHTML = this.lackingStores.map(l => `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${l.branch}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${l.supervisor}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${l.remarks}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${new Date(l.dateAdded).toLocaleDateString()}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <button onclick="app.resolveLacking(${l.id})" class="text-green-600 hover:text-green-900 mr-3">
+                                <i class="fas fa-check"></i> Resolve
+                            </button>
+                            <button onclick="app.deleteLacking(${l.id})" class="text-red-600 hover:text-red-900">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            deleteLacking(id) {
+                if (confirm('Delete this lacking store record?')) {
+                    this.lackingStores = this.lackingStores.filter(l => l.id !== id);
+                    this.saveData();
+                    this.renderLackingStores();
+                    this.showToast('Record deleted');
+                }
+            }
+
+            // CSV Templates and Upload
+            downloadStoreTemplate() {
+                const csv = 'OUTLET NAME,AREA,SUPERVISOR,ACCOUNT/RD,OUTLET ACCOUNT\n';
+                this.downloadCSV(csv, 'store_upload_template.csv');
+            }
+
+            downloadActivityTemplate() {
+                const csv = 'ACTIVITY NAME,PARTICIPATING BRANCH,SUPERVISOR,AREA\n';
+                this.downloadCSV(csv, 'activity_upload_template.csv');
+            }
+
+            downloadLackingTemplate() {
+                const csv = 'BRANCH,SUPERVISOR,REMARKS\n';
+                this.downloadCSV(csv, 'lacking_stores_template.csv');
+            }
+
+            downloadCSV(content, filename) {
+                const blob = new Blob([content], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                window.URL.revokeObjectURL(url);
+            }
+
+            handleStoreUpload(input) {
+                const file = input.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const text = e.target.result;
+                    const rows = this.parseCSV(text);
+                    
+                    if (rows.length < 2) {
+                        this.showToast('CSV file is empty or invalid', 'error');
+                        return;
+                    }
+                    
+                    const headers = rows[0].map(h => h.trim().toUpperCase());
+                    const required = ['OUTLET NAME', 'AREA', 'SUPERVISOR', 'ACCOUNT/RD', 'OUTLET ACCOUNT'];
+                    
+                    if (!required.every(h => headers.includes(h))) {
+                        this.showToast('Invalid CSV format. Please use the template.', 'error');
+                        return;
+                    }
+                    
+                    const newStores = [];
+                    for (let i = 1; i < rows.length; i++) {
+                        if (rows[i].length < 5) continue;
+                        newStores.push({
+                            id: Date.now() + i,
+                            outletName: rows[i][0]?.trim(),
+                            area: rows[i][1]?.trim(),
+                            supervisor: rows[i][2]?.trim(),
+                            accountRd: rows[i][3]?.trim(),
+                            outletAccount: rows[i][4]?.trim()
+                        });
+                    }
+                    
+                    this.stores = [...this.stores, ...newStores];
+                    this.saveData();
+                    this.renderStores();
+                    this.populateBranchSelect();
+                    this.showToast(`${newStores.length} stores uploaded successfully!`);
+                    input.value = '';
+                };
+                reader.readAsText(file);
+            }
+
+            handleActivityUpload(input) {
+                const file = input.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const text = e.target.result;
+                    const rows = this.parseCSV(text);
+                    
+                    if (rows.length < 2) {
+                        this.showToast('CSV file is empty or invalid', 'error');
+                        return;
+                    }
+                    
+                    const headers = rows[0].map(h => h.trim().toUpperCase());
+                    const required = ['ACTIVITY NAME', 'PARTICIPATING BRANCH', 'SUPERVISOR', 'AREA'];
+                    
+                    if (!required.every(h => headers.includes(h))) {
+                        this.showToast('Invalid CSV format. Please use the template.', 'error');
+                        return;
+                    }
+                    
+                    const newActivities = [];
+                    for (let i = 1; i < rows.length; i++) {
+                        if (rows[i].length < 4) continue;
+                        newActivities.push({
+                            id: Date.now() + i,
+                            name: rows[i][0]?.trim(),
+                            branch: rows[i][1]?.trim(),
+                            supervisor: rows[i][2]?.trim(),
+                            area: rows[i][3]?.trim(),
+                            date: new Date().toISOString().split('T')[0] // Default to today
+                        });
+                    }
+                    
+                    this.activities = [...this.activities, ...newActivities];
+                    this.saveData();
+                    this.renderActivities();
+                    this.renderCalendar();
+                    this.showToast(`${newActivities.length} activities uploaded successfully!`);
+                    input.value = '';
+                };
+                reader.readAsText(file);
+            }
+
+            handleLackingUpload(input) {
+                const file = input.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const text = e.target.result;
+                    const rows = this.parseCSV(text);
+                    
+                    if (rows.length < 2) {
+                        this.showToast('CSV file is empty or invalid', 'error');
+                        return;
+                    }
+                    
+                    const headers = rows[0].map(h => h.trim().toUpperCase());
+                    const required = ['BRANCH', 'SUPERVISOR', 'REMARKS'];
+                    
+                    if (!required.every(h => headers.includes(h))) {
+                        this.showToast('Invalid CSV format. Please use the template.', 'error');
+                        return;
+                    }
+                    
+                    const newLacking = [];
+                    for (let i = 1; i < rows.length; i++) {
+                        if (rows[i].length < 3) continue;
+                        newLacking.push({
+                            id: Date.now() + i,
+                            branch: rows[i][0]?.trim(),
+                            supervisor: rows[i][1]?.trim(),
+                            remarks: rows[i][2]?.trim(),
+                            dateAdded: new Date().toISOString()
+                        });
+                    }
+                    
+                    this.lackingStores = [...this.lackingStores, ...newLacking];
+                    this.saveData();
+                    this.renderLackingStores();
+                    this.updateStats();
+                    this.showToast(`${newLacking.length} lacking stores recorded!`);
+                    input.value = '';
+                };
+                reader.readAsText(file);
+            }
+
+            parseCSV(text) {
+                return text.split('\n').map(line => {
+                    const result = [];
+                    let current = '';
+                    let inQuotes = false;
+                    
+                    for (let char of line) {
+                        if (char === '"') {
+                            inQuotes = !inQuotes;
+                        } else if (char === ',' && !inQuotes) {
+                            result.push(current.trim());
+                            current = '';
+                        } else {
+                            current += char;
+                        }
+                    }
+                    result.push(current.trim());
+                    return result;
+                }).filter(row => row.some(cell => cell.length > 0));
+            }
+
+            // Export/Import
+            exportData() {
+                const data = {
+                    stores: this.stores,
+                    activities: this.activities,
+                    lackingStores: this.lackingStores,
+                    exportDate: new Date().toISOString()
+                };
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `store_activity_backup_${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                this.showToast('Data exported successfully!');
+            }
+
+            importData() {
+                document.getElementById('importFile').click();
+            }
+
+            handleImport(input) {
+                const file = input.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        if (data.stores) this.stores = data.stores;
+                        if (data.activities) this.activities = data.activities;
+                        if (data.lackingStores) this.lackingStores = data.lackingStores;
+                        this.saveData();
+                        this.init();
+                        this.showToast('Data imported successfully!');
+                    } catch (err) {
+                        this.showToast('Invalid backup file', 'error');
+                    }
+                    input.value = '';
+                };
+                reader.readAsText(file);
+            }
+
+            showToast(message, type = 'success') {
+                const toast = document.getElementById('toast');
+                const msg = document.getElementById('toastMessage');
+                msg.textContent = message;
+                toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg toast z-50 ${type === 'error' ? 'bg-red-600' : 'bg-gray-900'} text-white`;
+                toast.classList.remove('hidden');
+                setTimeout(() => toast.classList.add('hidden'), 3000);
+            }
+        }
+
+        // Initialize app
+        const app = new StoreActivityManager();
+    </script>
+</body>
+</html>
